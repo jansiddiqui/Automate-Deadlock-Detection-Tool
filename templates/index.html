@@ -1,37 +1,110 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Deadlock Detection Tool</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link href="https://unpkg.com/vis-network/styles/vis-network.min.css" rel="stylesheet" />
+    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
 </head>
+
 <body>
-    <h1>Deadlock Detection Tool</h1>
-    
-    <div class="container">
-        <h2>Enter Process-Resource Dependencies</h2>
-        <input type="text" id="process" placeholder="Process (e.g., P1) / Resource (e.g., R1)">
-        <input type="text" id="resource" placeholder="Resource (e.g., R1) / Process (e.g., P1)">
-        <button onclick="addEdge()">Add Dependency</button>
+    <!-- Animated background -->
+    <div id="particles-js"></div>
+    <div class="main-content">
+        <h1> Automated Deadlock Detection Tool</h1>
+        <div class="card">
+            <h2>Enter Process-Resource Dependencies</h2>
+            <input type="text" id="process" placeholder="Process (e.g., P1) / Resource (e.g., R1)">
+            <input type="text" id="resource" placeholder="Resource (e.g., R1) / Process (e.g., P1)">
+            <button onclick="addEdge()">Add Dependency</button>
 
-        <h3>Dependency List</h3>
-        <ul id="dependencyList"></ul>
+            <h3>Dependency List</h3>
+            <ul id="dependencyList"></ul>
 
-        <button onclick="detectDeadlock()">Detect Deadlock</button>
-        <button onclick="window.location.reload();">
-            Check New Deadlock
-        </button>
-        
-        <h2 id="result"></h2>
+            <div class="btn-row">
+                <button class="action" onclick="detectDeadlock()">🚦 Detect Deadlock</button>
+                <button class="action" onclick="window.location.reload();">🔄 Check New Deadlock</button>
+            </div>
+
+            <h2 id="result"></h2>
+
+            <div id="graphArea">
+                <div id="network"></div>
+            </div>
+
+            <div class="feedback-container">
+                <h3>📣 We'd love your feedback!</h3>
+                <form id="feedbackForm">
+                    <input type="text" name="name" placeholder="Your Name" required><br>
+                    <input type="email" name="email" placeholder="Your Email" required><br>
+                    <textarea name="message" placeholder="Share your experience..." rows="4" required></textarea><br>
+                    <button type="submit">✅ Submit Feedback</button>
+                </form>
+                <p id="feedbackResponse" style="margin-top: 10px; color: rgb(17, 194, 17);"></p>
+            </div>
+            <div class="creators-section">
+                <h2> Meet the Creators</h2>
+                <div class="creator-profiles">
+                    <div class="creator">
+                        <img src="{{ url_for('static', filename='img/member1.png') }}" alt="Your Photo">
+                        <h4>Jan Mohammad</h4>
+                        <p>Frontend Developer</p>
+                        <div class="social-links">
+                            <a href="https://github.com/jansiddiqui" target="_blank">
+                                <i class="fab fa-github"></i>
+                            </a>
+                            <a href="https://linkedin.com/in/jan-mohammad-sidd786" target="_blank">
+                                <i class="fab fa-linkedin"></i>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="creator">
+                        <img src="{{ url_for('static', filename='img/member3.png') }}" alt="Member 1">
+                        <h4>Himanshu Srivastava</h4>
+                        <p>Logic Designer</p>
+                        <div class="social-links">
+                            <a href="https://github.com/imhs04" target="_blank">
+                                <i class="fab fa-github"></i>
+                            </a>
+                            <a href="https://linkedin.com/in/himanshu071" target="_blank">
+                                <i class="fab fa-linkedin"></i>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="creator">
+                        <img src="{{ url_for('static', filename='img/member2.png') }}" alt="Member 2">
+                        <h4>Md. Parvezuddin</h4>
+                        <p>Backend & Debugging</p>
+                        <div class="social-links">
+                            <a href="https://github.com/mdparvezuddin" target="_blank">
+                                <i class="fab fa-github"></i>
+                            </a>
+                            <a href="https://linkedin.com/in/md-parvezuddin-1b8a32294" target="_blank">
+                                <i class="fab fa-linkedin"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
     </div>
+
+
 
     <script>
         let dependencies = [];
 
         function addEdge() {
-            let process = document.getElementById("process").value;
-            let resource = document.getElementById("resource").value;
+            let process = document.getElementById("process").value.trim();
+            let resource = document.getElementById("resource").value.trim();
 
             if (process && resource) {
                 dependencies.push([process, resource]);
@@ -47,11 +120,85 @@
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ dependencies })
             })
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById("result").innerText = data.message;
-            });
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById("result").innerText = data.message;
+                    drawGraph(dependencies);
+                });
         }
+
+        function drawGraph(edges) {
+            const nodesSet = new Set();
+            edges.forEach(([from, to]) => {
+                nodesSet.add(from);
+                nodesSet.add(to);
+            });
+
+            const nodes = Array.from(nodesSet).map(id => ({
+                id,
+                label: id,
+                shape: id.startsWith("P") ? "box" : "ellipse",
+                color: id.startsWith("P") ? "#ffc107" : "#17a2b8"
+            }));
+
+            const edgeList = edges.map(([from, to]) => ({
+                from,
+                to,
+                arrows: "to"
+            }));
+
+            const container = document.getElementById("network");
+            container.innerHTML = ""; // Clear any previous graph
+            const data = { nodes: new vis.DataSet(nodes), edges: new vis.DataSet(edgeList) };
+
+            const options = {
+                layout: { hierarchical: false },
+                physics: {
+                    enabled: true,
+                    solver: "forceAtlas2Based"
+                },
+                interaction: {
+                    dragNodes: true,
+                    zoomView: true
+                }
+            };
+
+            new vis.Network(container, data, options);
+        }
+
+        // Load particles animation
+        particlesJS.load('particles-js', 'https://cdn.jsdelivr.net/gh/VincentGarreau/particles.js/particles.json', function () {
+            console.log('particles.js loaded - cool background!');
+        });
+
+        //form
+
+        document.getElementById("feedbackForm").addEventListener("submit", function (e) {
+            e.preventDefault();
+
+            const formData = new FormData(this);
+            const data = Object.fromEntries(formData.entries());
+
+            fetch("https://formspree.io/f/manelney", {
+                method: "POST",
+                headers: { 'Accept': 'application/json' },
+                body: formData
+            })
+                .then(response => {
+                    if (response.ok) {
+                        document.getElementById("feedbackResponse").innerText = "Thank you for your feedback!";
+                        document.getElementById("feedbackForm").reset();
+                    } else {
+                        document.getElementById("feedbackResponse").innerText = "Oops! Something went wrong.";
+                    }
+                })
+                .catch(error => {
+                    document.getElementById("feedbackResponse").innerText = "Submission failed. Please try again.";
+                    console.error("Form error:", error);
+                });
+        });
     </script>
+
 </body>
+
 </html>
