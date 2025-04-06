@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deadlock Detection Tool</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <h1>Deadlock Detection Tool</h1>
+    
+    <div class="container">
+        <h2>Enter Process-Resource Dependencies</h2>
+        <input type="text" id="process" placeholder="Process (e.g., P1) / Resource (e.g., R1)">
+        <input type="text" id="resource" placeholder="Resource (e.g., R1) / Process (e.g., P1)">
+        <button onclick="addEdge()">Add Dependency</button>
+
+        <h3>Dependency List</h3>
+        <ul id="dependencyList"></ul>
+
+        <button onclick="detectDeadlock()">Detect Deadlock</button>
+        <button onclick="window.location.reload();">
+            Check New Deadlock
+        </button>
+        
+        <h2 id="result"></h2>
+    </div>
+
+    <script>
+        let dependencies = [];
+
+        function addEdge() {
+            let process = document.getElementById("process").value;
+            let resource = document.getElementById("resource").value;
+
+            if (process && resource) {
+                dependencies.push([process, resource]);
+                document.getElementById("dependencyList").innerHTML += `<li>${process} → ${resource}</li>`;
+                document.getElementById("process").value = "";
+                document.getElementById("resource").value = "";
+            }
+        }
+
+        function detectDeadlock() {
+            fetch("/detect_deadlock", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ dependencies })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById("result").innerText = data.message;
+            });
+        }
+    </script>
+</body>
+</html>
